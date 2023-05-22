@@ -7,7 +7,8 @@ from mavsdk import System
 # from Face_Recog_System import Face_Recognizer
 
 
-SYSTEM_ADDRESS = "udp://:14540"
+# SYSTEM_ADDRESS = "udp://:14540"
+SYSTEM_ADDRESS = "serial:///dev/ttyACM0"
 
 class Controller():
     def __init__(self):
@@ -206,10 +207,10 @@ class Logger():
 
 if __name__ == "__main__":
         
-    logger = Logger()
-    gps = asyncio.run(logger.get_status())
-    print(gps)
+    # logger = Logger()
+    # gps = asyncio.run(logger.get_status())
+    # print(gps)
     
-    # controller = Controller()
+    controller = Controller()
     
-    # asyncio.run(controller.goto(47.39, 8.54, 10))
+    asyncio.run(controller.arm())
