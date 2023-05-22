@@ -1,7 +1,7 @@
 import pika
 import pickle
 import time
-from dronekit import connect
+
 from Vehicle import Logger
 
 RABBITMQ_SERVER_IP = '203.255.57.129'
@@ -10,7 +10,7 @@ RABBITMQ_SERVER_PORT = '5672'
 
 class Logging_Publisher():
     
-    def __init__(self, vehicle, drone_name):
+    def __init__(self, drone_name):
         self.credentials = pika.PlainCredentials('rabbitmq', '1q2w3e4r')
         self.connection = pika.BlockingConnection(pika.ConnectionParameters(RABBITMQ_SERVER_IP, RABBITMQ_SERVER_PORT, 'vhost', self.credentials))
         self.channel = self.connection.channel()
@@ -22,7 +22,7 @@ class Logging_Publisher():
         self.channel.exchange_declare(exchange='monitoring', exchange_type='direct')
 
         # Logger 인스턴스 생성
-        self.logger = Logger(vehicle)
+        self.logger = Logger()
         
         self.term = 5
 
@@ -53,10 +53,7 @@ class Logging_Publisher():
 
 if __name__ == '__main__':
     
-    connection_string = '/dev/ttyACM0'
-    vehicle = connect(connection_string, wait_ready=True)
-
-    process = Logging_Publisher(vehicle)
+    process = Logging_Publisher()
     process.Logging()
 
     

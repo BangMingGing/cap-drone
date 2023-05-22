@@ -1,61 +1,50 @@
 import time
 import math
+import asyncio
 
-from dronekit import connect, Command, LocationGlobal
-from pymavlink import mavutil
+from mavsdk import System
 
 # from Face_Recog_System import Face_Recognizer
 
 
-
+SYSTEM_ADDRESS = "udp://:14540"
 
 class Controller():
-    def __init__(self, vehicle):
-        self.vehicle = vehicle
+    def __init__(self):
         self.my_name = '[Vehicle]'
-        self.vehicle._master.mav.command_long_send(
-            self.vehicle._master.target_system, 
-            self.vehicle._master.target_component,
-            mavutil.mavlink.MAV_CMD_DO_SET_MODE, 
-            0, 4, 0, 0, 0, 
-            0, 0, 0
-            )
-        self.cmds = vehicle.commands
-        self.cmds.clear()
-        
         
         # Face_Recognition 인스턴스 생성
         # self.face_recognizer = Face_Recognizer()
         return 
-    
-    
+
+
     def control(self, header, contents):
         if header == 'goto':
             lat = contents['lat']
             lon = contents['lon']
             alt = contents['alt']
             print(f"{self.my_name} goto call")
-            self.goto(lat, lon ,alt)
+            asyncio.run(self.goto(lat, lon ,alt))
             return
 
         elif header == 'arm':
             print(f"{self.my_name} arm call")
-            self.arm()
+            asyncio.run(self.arm())
         
         elif header == 'disarm':
             print(f"{self.my_name} disarm call")
-            self.disarm()
+            asyncio.run(self.disarm())
             return
             
         elif header == 'takeoff':
             alt = contents['alt']
             print(f"{self.my_name} takeoff Call")
-            self.takeoff(takeoff_alt=alt)
+            asyncio.run(self.takeoff(takeoff_alt=alt))
             return
         
         elif header == 'landing':
             print(f"{self.my_name} landing call")
-            self.landing()
+            asyncio.run(self.landing())
             return
         
         """    
@@ -71,135 +60,156 @@ class Controller():
         
 
         return
-    
 
-    def goto(self, lat, lon, alt):
+    async def goto(self, lat, lon, alt):
+        drone = System()
+        await drone.connect(system_address=SYSTEM_ADDRESS)
+        
+        print("Waiting for drone to connect...")
+        async for state in drone.core.connection_state():
+            if state.is_connected:
+                print(f"-- Connected to drone!")
+                break
+        
         print(f"{self.my_name} Goto {lat}, {lon}...")
         
         # 이동할 목표 지점
-        target_location = LocationGlobal(lat, lon, alt)
+        async for position in drone.telemetry.position():
+            flying_alt = position.absolute_altitude_m + alt
+            break
         
-        cmd = Command(
-            0,0,0, 
-            mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, 
-            mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 
-            0, 1, 0, 0, 0, 0, 
-            target_location.lat, target_location.lon, target_location.alt
-        )
-        self.cmds.add(cmd)
+        await drone.action.goto_location(lat, lon, flying_alt, 0)
+        await asyncio.sleep(20)
         
+        print(f"{self.my_name} Goto {lat}, {lon} End...")
         
-        # 목표 지점에 도달할 때까지 대기
-        while True:
-            current_location = self.vehicle.location.global_relative_frame
-            distance = current_location.distance_to(target_location)
-            if distance < 1:
-                break
-
         return
     
-    def arm(self):
+    async def arm(self):
+        drone = System()
+        await drone.connect(system_address=SYSTEM_ADDRESS)
+        
+        print("Waiting for drone to connect...")
+        async for state in drone.core.connection_state():
+            if state.is_connected:
+                print(f"-- Connected to drone!")
+                break
+            
         print(f"{self.my_name} Arming...")
         
-        self.vehicle.armed = True
+        await drone.action.arm()
+        await asyncio.sleep(5)
         
-        while not self.vehicle.armed:
-            time.sleep(1)
+        print(f"{self.my_name} Arming End...")
 
         return
     
-    def disarm(self):
+    async def disarm(self):
+        drone = System()
+        await drone.connect(system_address=SYSTEM_ADDRESS)
+        
+        print("Waiting for drone to connect...")
+        async for state in drone.core.connection_state():
+            if state.is_connected:
+                print(f"-- Connected to drone!")
+                break
+            
         print(f"{self.my_name} Disarming...")
         
-        self.vehicle.armed = False
+        await drone.action.disarm()
+        await asyncio.sleep(5)
         
-        while self.vehicle.armed:
-            time.sleep(1)    
+        print(f"{self.my_name} Disarming End...")
 
         return
     
-    def takeoff(self, takeoff_alt):
+    async def takeoff(self, takeoff_alt):
+        drone = System()
+        await drone.connect(system_address=SYSTEM_ADDRESS)
+        
+        print("Waiting for drone to connect...")
+        async for state in drone.core.connection_state():
+            if state.is_connected:
+                print(f"-- Connected to drone!")
+                break
+            
         print(f"{self.my_name} Taking off...")
         
         print('take_off lat: ', takeoff_alt)
         
-        current_location = self.vehicle.location.global_relative_frame
-        wp = LocationGlobal(current_location.lat, current_location.lon, current_location.alt+takeoff_alt)
-        print(current_location)
-        cmd = Command(
-            0,0,0, 
-            mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, 
-            mavutil.mavlink.MAV_CMD_NAV_TAKEOFF, 
-            0, 1, 0, 0, 0, 0, 
-            wp.lat, wp.lon, wp.alt
-        )
-        self.cmds.add(cmd)
+        await drone.action.set_takeoff_altitude(takeoff_alt)
         
-        # 설정 고도까지 올라갈 때까지 대기
-        while True:
-        # 현재 높이 확인
-            altitude = self.vehicle.location.global_relative_frame.alt
-            # print("alt: ", altitude)
-            # 설정 고도에 도달하면 반복문 종료
-            if altitude >= takeoff_alt * 0.9:
-                break
-
-
+        await drone.action.takeoff()
+        await asyncio.sleep(15)
+        
+        print(f"{self.my_name} Taking off End...")
+        
         return
     
-    def landing(self):
+    
+    async def landing(self):
+        drone = System()
+        await drone.connect(system_address=SYSTEM_ADDRESS)
+        
+        print("Waiting for drone to connect...")
+        async for state in drone.core.connection_state():
+            if state.is_connected:
+                print(f"-- Connected to drone!")
+                break
+            
         print(f"{self.my_name} Landing...")
         
-        current_location = self.vehicle.location.global_relative_frame
-        print(current_location)
-        wp = LocationGlobal(current_location.lat, current_location.lon, current_location.alt)
-
-        cmd = Command(0,0,0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_LAND, 0, 1, 0, 0, 0, 0, wp.lat, wp.lon, 0)
-        self.cmds.add(cmd)
+        await drone.action.land()
+        await asyncio.sleep(15)
         
-        # 설정 고도까지 올라갈 때까지 대기
-        while True:
-        # 현재 높이 확인
-            altitude = self.vehicle.location.global_relative_frame.alt
-            # print("alt: ", altitude)
-            # 설정 고도에 도달하면 반복문 종료
-            if altitude <= 0.1:
-                break
-        
-        current_location = self.vehicle.location.global_relative_frame
-        print(current_location)
+        print(f"{self.my_name} Landing End...")
 
         return
     
     
 
 class Logger():
-    def __init__(self, vehicle):
-        self.vehicle = vehicle
+    def __init__(self):
+
         self.GPS = {}
 
         return
-    
-    def get_status(self):
-        self.GPS['alt'] = self.vehicle.location.global_relative_frame.alt
-        self.GPS['lat'] = self.vehicle.location.global_relative_frame.lat
-        self.GPS['lon'] = self.vehicle.location.global_relative_frame.lon
-        self.GPS['speed'] = self.vehicle.groundspeed
-        self.GPS['battery'] = self.vehicle.battery.level
+
+    async def get_status(self):
+        drone = System()
+        await drone.connect(system_address=SYSTEM_ADDRESS)
+        
+        print("Waiting for drone to connect...")
+        async for state in drone.core.connection_state():
+            if state.is_connected:
+                print(f"-- Connected to drone!")
+                break
+            
+        async for position in drone.telemetry.position():
+            self.GPS['lat'] = position.latitude_deg
+            self.GPS['lon'] = position.longitude_deg
+            self.GPS['abs_alt'] = position.absolute_altitude_m
+            self.GPS['rel_alt'] = position.relative_altitude_m
+            break
+        
+        """async for speed in drone.telemetry.ground_speed_ned():
+            self.GPS['speed'] = math.sqrt(speed.velocity_north_m_s**2 + speed.velocity_east_m_s**2 + speed.velocity_down_m_s**2)
+            break"""
+            
+        async for battery in drone.telemetry.battery():
+            self.GPS['battery'] = battery.remaining_percent
+            break
 
         return self.GPS
-    
-    
-    
+
+
+
 if __name__ == "__main__":
+        
+    logger = Logger()
+    gps = asyncio.run(logger.get_status())
+    print(gps)
     
-    # connection_string = '/dev/ttyACM0'
-    connection_string = 'udp:127.0.0.1:14540'
+    # controller = Controller()
     
-    vehicle = connect(connection_string, wait_ready=True)
-    
-    controller = Controller(vehicle)
-    controller.arm()
-    controller.takeoff(10)
-    time.sleep(5)
-    controller.landing()
+    # asyncio.run(controller.goto(47.39, 8.54, 10))
