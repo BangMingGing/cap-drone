@@ -86,13 +86,10 @@ class Controller():
         await drone.action.goto_location(lat, lon, flying_alt, 0)
         
         # 목표 좌표 도달 확인
-        while True:
-            async for position in drone.telemetry.position():
-                cur_lat = position.latitude_deg
-                cur_lon = position.longitude_deg
-                print(cur_lat, cur_lon)
-                break
-                
+        async for position in drone.telemetry.position():
+            cur_lat = position.latitude_deg
+            cur_lon = position.longitude_deg
+            
             if abs(cur_lat - lat) < self.goto_diff and abs(cur_lon - lon) < self.goto_diff:
                 print("Arrived at Target lat, lon")
                 break
@@ -159,16 +156,13 @@ class Controller():
         await drone.action.takeoff()
         
         # 목표 고도 도달 확인
-        while True:
-            async for position in drone.telemetry.position():
-                cur_alt = position.relative_altitude_m
-                print(cur_alt)
-                break
+        async for position in drone.telemetry.position():
+            cur_alt = position.relative_altitude_m
             
             if abs(cur_alt - takeoff_alt) < self.takeoff_diff:
                 print("Arrived at Target alt - takeoff")
                 break
-                
+            
             await asyncio.sleep(1)
         
         print(f"{self.my_name} Taking off End...")
@@ -191,19 +185,15 @@ class Controller():
         await drone.action.land()
         
         # 목표 고도 도달 확인
-        while True:
-            async for position in drone.telemetry.position():
-                cur_alt = position.relative_altitude_m
-                print(cur_alt)
-                break
+        async for position in drone.telemetry.position():
+            cur_alt = position.relative_altitude_m
+            print(cur_alt)
             
-            if cur_alt < self.landing_diff:
+            if abs(cur_alt) < self.landing_diff:
                 print("Arrived at Target alt - landing")
                 break
-                
+            
             await asyncio.sleep(1)
-        
-        print(f"{self.my_name} Taking off End...")
         
         print(f"{self.my_name} Landing End...")
 
@@ -249,16 +239,7 @@ class Logger():
 
 if __name__ == "__main__":
         
-    # logger = Logger()
-    # gps = asyncio.run(logger.get_status())
-    # print(gps)
-    
-    controller = Controller()
-    
-    asyncio.run(controller.arm())
-    asyncio.run(controller.takeoff(5))
-    asyncio.run(controller.goto(47.39777, 8.54565, 0))
-    asyncio.run(controller.landing())
-    
-    
+    logger = Logger()
+    gps = asyncio.run(logger.get_status())
+    print(gps)    
     

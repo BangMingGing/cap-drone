@@ -90,7 +90,7 @@ class Controller():
             async for position in drone.telemetry.position():
                 cur_lat = position.latitude_deg
                 cur_lon = position.longitude_deg
-                print(cur_lat, cur_lon)
+                # print(cur_lat, cur_lon)
                 break
                 
             if abs(cur_lat - lat) < self.goto_diff and abs(cur_lon - lon) < self.goto_diff:
@@ -162,7 +162,7 @@ class Controller():
         while True:
             async for position in drone.telemetry.position():
                 cur_alt = position.relative_altitude_m
-                print(cur_alt)
+                # print(cur_alt)
                 break
             
             if abs(cur_alt - takeoff_alt) < self.takeoff_diff:
@@ -194,7 +194,7 @@ class Controller():
         while True:
             async for position in drone.telemetry.position():
                 cur_alt = position.relative_altitude_m
-                print(cur_alt)
+                # print(cur_alt)
                 break
             
             if cur_alt < self.landing_diff:
@@ -248,16 +248,9 @@ class Logger():
 
 
 if __name__ == "__main__":
-        
-    # logger = Logger()
-    # gps = asyncio.run(logger.get_status())
-    # print(gps)
     
     controller = Controller()
-    
-    asyncio.run(controller.arm())
-    asyncio.run(controller.takeoff(5))
-    asyncio.run(controller.goto(47.39777, 8.54565, 0))
+
     asyncio.run(controller.landing())
     
     
