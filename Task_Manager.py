@@ -1,3 +1,4 @@
+import argparse
 import pika
 import pickle
 import time
@@ -10,22 +11,24 @@ RABBITMQ_SERVER_PORT = '5672'
 
 class Task_Consumer():
     
-    def __init__(self, drone_name):
+    def __init__(self, drone_name, lock):
         self.credentials = pika.PlainCredentials('rabbitmq', '1q2w3e4r')
         self.connection = pika.BlockingConnection(pika.ConnectionParameters(RABBITMQ_SERVER_IP, RABBITMQ_SERVER_PORT, 'vhost', self.credentials))
         self.channel = self.connection.channel()
         
         self.my_name = '[Task_Consumer]'
         
+        self.drone_name = drone_name
         self.queue_name = drone_name
+        self.exchange_name = 'input'
 
         # Queue 선언
         queue = self.channel.queue_declare(self.queue_name)
         # Queue-Exchange Binding
-        self.channel.queue_bind(exchange='cap', queue=self.queue_name, routing_key=f'to{self.queue_name}')
+        self.channel.queue_bind(exchange=self.exchange_name, queue=self.queue_name, routing_key=f'to{self.queue_name}')
 
         # Controller 인스턴스 생성
-        self.controller = Controller()
+        self.controller = Controller(drone_name, lock)
         
     
     def callback(self, ch, method, properties, body):
@@ -48,5 +51,12 @@ class Task_Consumer():
         
 if __name__ == '__main__':
     
-    process = Task_Consumer()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--drone_name', help='drone_name argument')
+    
+    args, unknown = parser.parse_known_args()
+    
+    drone_name = args.drone_name
+    
+    process = Task_Consumer(drone_name)
     process.consume()
