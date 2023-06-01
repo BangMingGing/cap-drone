@@ -1,14 +1,17 @@
 
 import asyncio
 import requests
+import cv2 as cv
+import time
 
+from threading import Thread, Lock
 from mavsdk import System
 
 from face_recog_system.face_recog import Face_Recognizer
 
 
-SYSTEM_ADDRESS = "udp://:14540"
-# SYSTEM_ADDRESS = "serial:///dev/ttyACM0"
+# SYSTEM_ADDRESS = "udp://:14540"
+SYSTEM_ADDRESS = "serial:///dev/ttyACM0"
 
 class Controller():
     def __init__(self, drone_name, lock):
@@ -19,12 +22,13 @@ class Controller():
         
         self.takeoff_diff = 0.1
         self.landing_diff = 0.1
-        self.goto_diff = 1e-6
+        self.goto_diff = 1e-5
         
         # Face_Recognition 인스턴스 생성
         self.face_recognizer = Face_Recognizer()
+        self.cap = cv.VideoCapture(0)
         
-        self.url = "203.255.57.122:8888/face/face_recog_inference"
+        self.url = "http://203.255.57.122:8888/face/face_recog_inference"
         return 
 
 
@@ -72,12 +76,40 @@ class Controller():
 
     
     async def face_recognition(self, pre_inference_model, receiver_info):
-        for _ in range(30):
-            result = self.face_recognizer.face_recognition(cap_name=0)
-            payload = {'result': result, 'drone_name': self.drone_name}
-            response = requests.post(self.url, json=payload)
+        
+        # Generate video_writer
+        output_file = 'face_video.mp4'
+        fourcc = cv.VideoWriter_fourcc(*'MP4V')
+        fps = self.cap.get(cv.CAP_PROP_FPS)
+        frame_size = (224, 224)  
+        video_writer = cv.VideoWriter(output_file, fourcc, fps, frame_size)
+        
+        # find face in CAM for 5 seconds
+        end_time = time.time() + 5
+        
+        while True:
+            if time.time() > end_time:
+                break
+            if not self.cap.isOpened():
+                print("Failed to open the camera")
+                continue
             
-            await asyncio.sleep(1)
+            ret, frame = self.read()
+            
+            if ret:
+                img, is_face, rectang = self.face_recognizer.face_detector(frame)
+                
+                video_writer.write(img)
+                
+        video_writer.release()
+        
+        video_file = open('face_video.mp4', 'rb')
+        payload = {'video_file': video_file, 'drone_name': self.drone_name, 'receiver_info': receiver_info}
+        
+        # response = requests.post(self.url, json=payload)
+        # if response.status_code != 200:
+        #     print('face_video request failed')
+
         
         return
     
@@ -280,16 +312,8 @@ class Logger():
 
 if __name__ == "__main__":
         
-    # logger = Logger()
-    # gps = asyncio.run(logger.get_status())
-    # print(gps)
+    lock = Lock()
+    controller = Controller('test', lock)
     
-    controller = Controller()
-    
-    asyncio.run(controller.arm())
-    asyncio.run(controller.takeoff(5))
-    asyncio.run(controller.goto(47.39777, 8.54565, 0))
-    asyncio.run(controller.landing())
-    
-    
+    asyncio.run(controller.face_recognition(0, 0))
     
