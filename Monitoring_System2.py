@@ -40,7 +40,7 @@ class Logging_Publisher():
     
     
     def Logging(self):
-        print(f"{self.my_name} Start Logging")
+        print(f"{self.my_name} Start Logging _ {self.drone_name}")
         while True:
             try:
                 GPS_info = self.controller.GPS
