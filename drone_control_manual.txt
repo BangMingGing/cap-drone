@@ -1,0 +1,11 @@
+드론은 arm, disarm, takeoff, landing, goto 명령어를 받는다.
+
+형식
+{'header': 'arm', 'contents': {}}
+{'header': 'disarm', 'contents': {}}
+{'header': 'takeoff', 'contents': {'alt': flight_alt}}
+{'header': 'goto', 'contents': {'lat': way_point_lat, 'lon': way_point_lon, 'alt': 'alt_change'}}
+{'header': 'landing', 'contents': {}}
+
+
+생성된 딕셔너리는 pickle.dumps('생성된 딕셔너리')를 통해 이진화하여 드론에게 전송한다.
