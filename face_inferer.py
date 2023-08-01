@@ -7,8 +7,9 @@ from face_recog_system.face_recog import Face_Recognizer
 
 class Face_Inferer():
     
-    def __init__():
+    def __init__(self, drone_name):
         
+        self.drone_name = drone_name
         self.face_recognizer = Face_Recognizer()
 
 

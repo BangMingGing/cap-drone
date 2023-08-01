@@ -8,8 +8,8 @@ from mavsdk import System
 from face_inferer import Face_Inferer
 
 
-# SYSTEM_ADDRESS = "udp://:14540"
-SYSTEM_ADDRESS = "serial:///dev/ttyACM0"
+SYSTEM_ADDRESS = "udp://:14540"
+# SYSTEM_ADDRESS = "serial:///dev/ttyACM0"
 
 class Controller():
     def __init__(self, drone_name):
@@ -22,7 +22,7 @@ class Controller():
         self.goto_diff = 1e-5
         
         # Face_Recognition 인스턴스 생성
-        self.face_inferer = Face_Inferer()
+        self.face_inferer = Face_Inferer(drone_name)
 
         self.GPS = {}
         asyncio.run(self.init_gps())
@@ -61,7 +61,7 @@ class Controller():
             return
         
         elif header == 'wait':
-            wait_time = contents['time']
+            wait_time = contents['wait_time']
             print(f"{self.my_name} wait call")
             asyncio.run(self.wait(wait_time))
             return
