@@ -1,13 +1,12 @@
 
 import asyncio
-import requests
-import cv2 as cv
+
 import time
 
 from threading import Thread, Lock
 from mavsdk import System
 
-from face_recog_system.face_recog import Face_Recognizer
+from face_inferer import Face_Inferer
 
 
 # SYSTEM_ADDRESS = "udp://:14540"
@@ -24,7 +23,8 @@ class Controller():
         self.goto_diff = 1e-5
         
         # Face_Recognition 인스턴스 생성
-        self.face_recognizer = Face_Recognizer()
+        self.face_inferer = Face_Inferer()
+
         self.GPS = {}
         asyncio.run(self.init_gps())
         
@@ -61,13 +61,19 @@ class Controller():
             asyncio.run(self.landing())
             return
         
+        elif header == 'wait':
+            wait_time = contents['time']
+            print(f"{self.my_name} wait call")
+            asyncio.run(self.wait(wait_time))
+            return
         
         elif header == 'face_recognition':
             pre_inference_model = contents['pre_inference_model']
             receiver_info = contents['receiver_info']
             print(f"{self.my_name} face_recognition call")
-            asyncio.run(self.face_recognition(pre_inference_model, receiver_info))
+            asyncio.run(self.face_inferer.face_recognition_video(pre_inference_model, receiver_info))
             return
+
         else :
             print("Header keyword Error")
         
@@ -95,55 +101,6 @@ class Controller():
             break
 
         return 
-
-    
-    async def face_recognition(self, pre_inference_model, receiver_info):
-        # CAM open
-        cap = cv.VideoCapture(0)
-        t = time.time() % 100
-        
-        # Generate video_writer
-        output_file = f'{t}_face_video.mp4'
-        fourcc = cv.VideoWriter_fourcc(*'MP4V')
-        fps = cap.get(cv.CAP_PROP_FPS)
-        frame_size = (224, 224)
-        video_writer = cv.VideoWriter(output_file, fourcc, fps, frame_size)
-        
-        total_output_file = f'{t}_total_face_video.mp4'
-        total_frame_size = (int(cap.get(cv.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv.CAP_PROP_FRAME_HEIGHT)))
-        total_video_writer = cv.VideoWriter(total_output_file, fourcc, fps, total_frame_size)
-
-        # find face in CAM for 5 seconds
-        end_time = time.time() + 6
-        
-        while True:
-            if time.time() > end_time:
-                break
-            if not cap.isOpened():
-                print("Failed to open the camera")
-                break
-            
-            ret, frame = cap.read()
-            
-            if ret:
-                img, is_face, rectang = self.face_recognizer.face_detector(frame)
-                total_video_writer.write(frame)
-                video_writer.write(img)
-                
-        video_writer.release()
-        total_video_writer.release()
-        
-        # video_file = open(output_file, 'rb')
-        payload = {'drone_name': self.drone_name, 'receiver_info': receiver_info}
-        files = {'video_file': video_file}
-
-        response = requests.post(self.url, files=files ,data=payload)
-        if response.status_code != 200:
-            print('face_video request failed')
-
-        
-        return
-    
     
     
     async def goto(self, lat, lon, alt):
@@ -305,6 +262,11 @@ class Controller():
 
         return
         
+    async def wait(self, wait_time):
+        
+        await asyncio.sleep(wait_time)
+        
+        return
 
 
 if __name__ == "__main__":
