@@ -11,7 +11,7 @@ RABBITMQ_SERVER_PORT = '5672'
 
 class Task_Consumer():
     
-    def __init__(self, drone_name, lock):
+    def __init__(self, controller, drone_name):
         self.credentials = pika.PlainCredentials('rabbitmq', '1q2w3e4r')
         self.connection = pika.BlockingConnection(pika.ConnectionParameters(RABBITMQ_SERVER_IP, RABBITMQ_SERVER_PORT, 'vhost', self.credentials))
         self.channel = self.connection.channel()
@@ -28,7 +28,7 @@ class Task_Consumer():
         self.channel.queue_bind(exchange=self.exchange_name, queue=self.queue_name, routing_key=f'to{self.queue_name}')
 
         # Controller 인스턴스 생성
-        self.controller = Controller(drone_name, lock)
+        self.controller = controller
         
     
     def callback(self, ch, method, properties, body):

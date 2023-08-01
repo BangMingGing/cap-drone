@@ -14,19 +14,19 @@ from face_recog_system.face_recog import Face_Recognizer
 SYSTEM_ADDRESS = "serial:///dev/ttyACM0"
 
 class Controller():
-    def __init__(self, drone_name, lock):
+    def __init__(self, drone_name):
         
         self.my_name = '[Vehicle]'
         self.drone_name = drone_name
-        self.lock = lock
         
-        self.takeoff_diff = 0.1
-        self.landing_diff = 0.1
+        self.takeoff_diff = 0.5
+        self.landing_diff = 0.3
         self.goto_diff = 1e-5
         
         # Face_Recognition 인스턴스 생성
         self.face_recognizer = Face_Recognizer()
-        self.cap = cv.VideoCapture(0)
+        self.GPS = {}
+        asyncio.run(self.init_gps())
         
         self.url = "http://203.255.57.122:8888/face/face_recog_inference"
         return 
@@ -74,41 +74,72 @@ class Controller():
 
         return
 
+
+    async def init_gps(self):
+        
+        drone = System()
+        await drone.connect(system_address=SYSTEM_ADDRESS)
+        
+        print("Waiting for drone to connect...")
+        async for state in drone.core.connection_state():
+            if state.is_connected:
+                print(f"-- Connected to drone!")
+                break
+
+                
+        async for position in drone.telemetry.position():
+            self.GPS['lat'] = position.latitude_deg
+            self.GPS['lon'] = position.longitude_deg
+            self.GPS['abs_alt'] = position.absolute_altitude_m
+            self.GPS['rel_alt'] = position.relative_altitude_m
+            break
+
+        return 
+
     
     async def face_recognition(self, pre_inference_model, receiver_info):
+        # CAM open
+        cap = cv.VideoCapture(0)
+        t = time.time() % 100
         
         # Generate video_writer
-        output_file = 'face_video.mp4'
+        output_file = f'{t}_face_video.mp4'
         fourcc = cv.VideoWriter_fourcc(*'MP4V')
-        fps = self.cap.get(cv.CAP_PROP_FPS)
-        frame_size = (224, 224)  
+        fps = cap.get(cv.CAP_PROP_FPS)
+        frame_size = (224, 224)
         video_writer = cv.VideoWriter(output_file, fourcc, fps, frame_size)
         
+        total_output_file = f'{t}_total_face_video.mp4'
+        total_frame_size = (int(cap.get(cv.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv.CAP_PROP_FRAME_HEIGHT)))
+        total_video_writer = cv.VideoWriter(total_output_file, fourcc, fps, total_frame_size)
+
         # find face in CAM for 5 seconds
-        end_time = time.time() + 5
+        end_time = time.time() + 6
         
         while True:
             if time.time() > end_time:
                 break
-            if not self.cap.isOpened():
+            if not cap.isOpened():
                 print("Failed to open the camera")
-                continue
+                break
             
-            ret, frame = self.read()
+            ret, frame = cap.read()
             
             if ret:
                 img, is_face, rectang = self.face_recognizer.face_detector(frame)
-                
+                total_video_writer.write(frame)
                 video_writer.write(img)
                 
         video_writer.release()
+        total_video_writer.release()
         
-        video_file = open('face_video.mp4', 'rb')
-        payload = {'video_file': video_file, 'drone_name': self.drone_name, 'receiver_info': receiver_info}
-        
-        # response = requests.post(self.url, json=payload)
-        # if response.status_code != 200:
-        #     print('face_video request failed')
+        # video_file = open(output_file, 'rb')
+        payload = {'drone_name': self.drone_name, 'receiver_info': receiver_info}
+        files = {'video_file': video_file}
+
+        response = requests.post(self.url, files=files ,data=payload)
+        if response.status_code != 200:
+            print('face_video request failed')
 
         
         return
@@ -116,35 +147,36 @@ class Controller():
     
     
     async def goto(self, lat, lon, alt):
-        with self.lock:
-            drone = System()
-            await drone.connect(system_address=SYSTEM_ADDRESS)
-            
-            print("Waiting for drone to connect...")
-            async for state in drone.core.connection_state():
-                if state.is_connected:
-                    print(f"-- Connected to drone!")
-                    break
-            
-            print(f"{self.my_name} Goto {lat}, {lon}...")
-            
-            # 이동할 목표 지점
-            async for position in drone.telemetry.position():
-                flying_alt = position.absolute_altitude_m + alt
+        
+        drone = System()
+        await drone.connect(system_address=SYSTEM_ADDRESS)
+        
+        print("Waiting for drone to connect...")
+        async for state in drone.core.connection_state():
+            if state.is_connected:
+                print(f"-- Connected to drone!")
                 break
-            
-            await drone.action.goto_location(lat, lon, flying_alt, 0)
+        
+        print(f"{self.my_name} Goto {lat}, {lon} / alt change : {alt}...")
+        
+        # 이동할 목표 지점
+        async for position in drone.telemetry.position():
+            flying_alt = position.absolute_altitude_m + alt
+            break
+        
+        await drone.action.goto_location(lat, lon, flying_alt, 0)
             
         # 목표 좌표 도달 확인
         while True:
-            with self.lock:
-                async for position in drone.telemetry.position():
-                    cur_lat = position.latitude_deg
-                    cur_lon = position.longitude_deg
-                    # print(cur_lat, cur_lon)
-                    break
+            
+            async for position in drone.telemetry.position():
+                self.GPS['lat'] = position.latitude_deg
+                self.GPS['lon'] = position.longitude_deg
+                self.GPS['abs_alt'] = position.absolute_altitude_m
+                self.GPS['rel_alt'] = position.relative_altitude_m
+                break
                 
-            if abs(cur_lat - lat) < self.goto_diff and abs(cur_lon - lon) < self.goto_diff:
+            if abs(self.GPS['lat'] - lat) < self.goto_diff and abs(self.GPS['lon'] - lon) < self.goto_diff and abs(self.GPS['abs_alt'] - flying_alt) < self.takeoff_diff:
                 print("Arrived at Target lat, lon")
                 break
             
@@ -156,20 +188,20 @@ class Controller():
     
     
     async def arm(self):
-        with self.lock:
-            drone = System()
-            await drone.connect(system_address=SYSTEM_ADDRESS)
+        
+        drone = System()
+        await drone.connect(system_address=SYSTEM_ADDRESS)
+        
+        print("Waiting for drone to connect...")
+        async for state in drone.core.connection_state():
+            if state.is_connected:
+                print(f"-- Connected to drone!")
+                break
             
-            print("Waiting for drone to connect...")
-            async for state in drone.core.connection_state():
-                if state.is_connected:
-                    print(f"-- Connected to drone!")
-                    break
-                
-            print(f"{self.my_name} Arming...")
-            
-            await drone.action.arm()
-        await asyncio.sleep(5)
+        print(f"{self.my_name} Arming...")
+        
+        await drone.action.arm()
+        await asyncio.sleep(2)
                 
         print(f"{self.my_name} Arming End...")
 
@@ -177,20 +209,20 @@ class Controller():
     
     
     async def disarm(self):
-        with self.lock:
-            drone = System()
-            await drone.connect(system_address=SYSTEM_ADDRESS)
+        
+        drone = System()
+        await drone.connect(system_address=SYSTEM_ADDRESS)
+        
+        print("Waiting for drone to connect...")
+        async for state in drone.core.connection_state():
+            if state.is_connected:
+                print(f"-- Connected to drone!")
+                break
             
-            print("Waiting for drone to connect...")
-            async for state in drone.core.connection_state():
-                if state.is_connected:
-                    print(f"-- Connected to drone!")
-                    break
-                
-            print(f"{self.my_name} Disarming...")
-            
-            await drone.action.disarm()
-        await asyncio.sleep(5)
+        print(f"{self.my_name} Disarming...")
+        
+        await drone.action.disarm()
+        await asyncio.sleep(2)
         
         print(f"{self.my_name} Disarming End...")
 
@@ -198,32 +230,34 @@ class Controller():
 
     
     async def takeoff(self, takeoff_alt):
-        with self.lock:
-            drone = System()
-            await drone.connect(system_address=SYSTEM_ADDRESS)
+        
+        drone = System()
+        await drone.connect(system_address=SYSTEM_ADDRESS)
+        
+        print("Waiting for drone to connect...")
+        async for state in drone.core.connection_state():
+            if state.is_connected:
+                print(f"-- Connected to drone!")
+                break
             
-            print("Waiting for drone to connect...")
-            async for state in drone.core.connection_state():
-                if state.is_connected:
-                    print(f"-- Connected to drone!")
-                    break
-                
-            print(f"{self.my_name} Taking off...")
-            
-            print('take_off lat: ', takeoff_alt)
-            
-            await drone.action.set_takeoff_altitude(takeoff_alt)
-            await drone.action.takeoff()
+        print(f"{self.my_name} Taking off...")
+        
+        print('take_off lat: ', takeoff_alt)
+        
+        await drone.action.set_takeoff_altitude(takeoff_alt)
+        await drone.action.takeoff()
                 
         # 목표 고도 도달 확인
         while True:
-            with self.lock:
-                async for position in drone.telemetry.position():
-                    cur_alt = position.relative_altitude_m
-                    # print(cur_alt)
-                    break
             
-            if abs(cur_alt - takeoff_alt) < self.takeoff_diff:
+            async for position in drone.telemetry.position():
+                self.GPS['lat'] = position.latitude_deg
+                self.GPS['lon'] = position.longitude_deg
+                self.GPS['abs_alt'] = position.absolute_altitude_m
+                self.GPS['rel_alt'] = position.relative_altitude_m
+                break
+            
+            if abs(self.GPS['rel_alt'] - takeoff_alt) < self.takeoff_diff:
                 print("Arrived at Target alt - takeoff")
                 break
                 
@@ -235,29 +269,31 @@ class Controller():
             
     
     async def landing(self):
-        with self.lock:
-            drone = System()
-            await drone.connect(system_address=SYSTEM_ADDRESS)
+        
+        drone = System()
+        await drone.connect(system_address=SYSTEM_ADDRESS)
+        
+        print("Waiting for drone to connect...")
+        async for state in drone.core.connection_state():
+            if state.is_connected:
+                print(f"-- Connected to drone!")
+                break
             
-            print("Waiting for drone to connect...")
-            async for state in drone.core.connection_state():
-                if state.is_connected:
-                    print(f"-- Connected to drone!")
-                    break
-                
-            print(f"{self.my_name} Landing...")
-            
-            await drone.action.land()
+        print(f"{self.my_name} Landing...")
+        
+        await drone.action.land()
                 
         # 목표 고도 도달 확인
         while True:
-            with self.lock:
-                async for position in drone.telemetry.position():
-                    cur_alt = position.relative_altitude_m
-                    print(cur_alt)
-                    break
             
-            if cur_alt < self.landing_diff:
+            async for position in drone.telemetry.position():
+                self.GPS['lat'] = position.latitude_deg
+                self.GPS['lon'] = position.longitude_deg
+                self.GPS['abs_alt'] = position.absolute_altitude_m
+                self.GPS['rel_alt'] = position.relative_altitude_m
+                break
+            
+            if self.GPS['rel_alt'] < self.landing_diff:
                 print("Arrived at Target alt - landing")
                 break
                 
@@ -271,49 +307,12 @@ class Controller():
         
 
 
-class Logger():
-    def __init__(self, drone_name, lock):
-
-        self.drone_name = drone_name
-        self.lock = lock
-        self.GPS = {}
-
-        return
-
-    async def get_status(self):
-        with self.lock:
-            drone = System()
-            await drone.connect(system_address=SYSTEM_ADDRESS)
-            
-            # print("Waiting for drone to connect...")
-            async for state in drone.core.connection_state():
-                if state.is_connected:
-                    # print(f"-- Connected to drone!")
-                    break
-                
-            async for position in drone.telemetry.position():
-                self.GPS['lat'] = position.latitude_deg
-                self.GPS['lon'] = position.longitude_deg
-                self.GPS['abs_alt'] = position.absolute_altitude_m
-                self.GPS['rel_alt'] = position.relative_altitude_m
-                break
-            
-            """async for speed in drone.telemetry.ground_speed_ned():
-                self.GPS['speed'] = math.sqrt(speed.velocity_north_m_s**2 + speed.velocity_east_m_s**2 + speed.velocity_down_m_s**2)
-                break"""
-                
-            async for battery in drone.telemetry.battery():
-                self.GPS['battery'] = battery.remaining_percent
-                break
-            
-        return self.GPS
-
-
-
 if __name__ == "__main__":
         
     lock = Lock()
-    controller = Controller('test', lock)
+    controller = Controller('test')
     
-    asyncio.run(controller.face_recognition(0, 0))
+    asyncio.run(controller.arm())
+    asyncio.run(controller.takeoff(15))
+    asyncio.run(controller.landing())
     
