@@ -22,7 +22,7 @@ class Controller():
         self.goto_diff = 1e-5
         
         # Face_Recognition 인스턴스 생성
-        self.face_inferer = Face_Inferer()
+        self.face_inferer = Face_Inferer(drone_name)
 
         self.GPS = {}
         asyncio.run(self.init_gps())
@@ -62,7 +62,7 @@ class Controller():
         
         elif header == 'wait':
             wait_time = contents['time']
-            print(f"{self.my_name} wait call {wait_time}sec")
+            print(f"{self.my_name} wait call")
             asyncio.run(self.wait(wait_time))
             return
         
