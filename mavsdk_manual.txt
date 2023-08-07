@@ -1,0 +1,17 @@
+git clone https://github.com/mavlink/MAVSDK-Python --recursive
+cd MAVSDK-Python
+
+cd proto/pb_plugins
+pip3 install -r requirements.txt
+
+cd ../..
+pip3 install -r requirements.txt -r requirements-dev.txt
+
+./other/tools/run_protoc.sh
+
+export MAVSDK_SERVER_ARCH=<ARM embedded architecture>
+RP의 경우 위 명령어를 아래 명령어로 대체
+export MAVSDK_SERVER_ARCH=aarch64
+
+python3 setup.py build
+pip3 install -e .
