@@ -8,8 +8,8 @@ from mavsdk import System
 from face_inferer import Face_Inferer
 
 
-# SYSTEM_ADDRESS = "udp://:14540"
-SYSTEM_ADDRESS = "serial:///dev/ttyACM0"
+SYSTEM_ADDRESS = "udp://:14540"
+# SYSTEM_ADDRESS = "serial:///dev/ttyACM0"
 
 class Controller():
     def __init__(self, drone_name):
@@ -62,7 +62,7 @@ class Controller():
         
         elif header == 'wait':
             wait_time = contents['time']
-            print(f"{self.my_name} wait call")
+            print(f"{self.my_name} wait call {wait_time}sec")
             asyncio.run(self.wait(wait_time))
             return
         
@@ -264,6 +264,7 @@ class Controller():
     async def wait(self, wait_time):
         
         await asyncio.sleep(wait_time)
+        print(f"{self.my_name} Wait End...")
         
         return
 
