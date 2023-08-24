@@ -1,3 +1,7 @@
 mavsdk
 asyncio
 pika
+numpy
+opencv-python
+dlib
+imutils
