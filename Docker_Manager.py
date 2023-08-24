@@ -44,3 +44,9 @@ class DockerImageSaver():
     def saveDockerImage():
 
         return
+    
+
+
+if __name__ == '__main__':
+    dockerRunner = DockerRunner()
+    dockerRunner.containerRun('face_recog_image', 'test_container', '/repos', '')
