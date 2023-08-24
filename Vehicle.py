@@ -2,7 +2,6 @@
 import asyncio
 import time
 
-from threading import Thread, Lock
 from mavsdk import System
 
 from face_inferer import Face_Inferer
@@ -27,7 +26,6 @@ class Controller():
         self.GPS = {}
         asyncio.run(self.init_gps())
         
-        self.url = "http://203.255.57.122:8888/face/face_recog_inference"
         return 
 
 
@@ -263,6 +261,10 @@ class Controller():
         
     async def wait(self, wait_time):
         
+        drone = System()
+        await drone.connect(system_address=SYSTEM_ADDRESS)
+        await drone.action.hold()
+
         await asyncio.sleep(wait_time)
         print(f"{self.my_name} Wait End...")
         
@@ -271,7 +273,6 @@ class Controller():
 
 if __name__ == "__main__":
         
-    lock = Lock()
     controller = Controller('test')
     
     asyncio.run(controller.arm())

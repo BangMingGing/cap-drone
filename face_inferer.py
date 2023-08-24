@@ -11,6 +11,7 @@ class Face_Inferer():
         
         self.drone_name = drone_name
         self.face_recognizer = Face_Recognizer()
+        self.url = "http://203.255.57.122:8888/face/face_recog_inference"
 
 
     async def face_recognition_video(self, pre_inference_model, receiver_info):
