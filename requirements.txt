@@ -1,6 +1,7 @@
 mavsdk
 asyncio
 pika
+requests
 numpy
 opencv-python
 dlib
