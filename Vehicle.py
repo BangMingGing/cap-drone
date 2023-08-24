@@ -1,11 +1,8 @@
-
 import asyncio
-import time
 
 from mavsdk import System
 
-from face_inferer import Face_Inferer
-
+from Docker_Manager import Docker_Runner
 
 SYSTEM_ADDRESS = "udp://:14540"
 # SYSTEM_ADDRESS = "serial:///dev/ttyACM0"
@@ -20,11 +17,10 @@ class Controller():
         self.landing_diff = 0.3
         self.goto_diff = 1e-5
         
-        # Face_Recognition 인스턴스 생성
-        self.face_inferer = Face_Inferer(drone_name)
-
         self.GPS = {}
         asyncio.run(self.init_gps())
+
+        self.dockerRunner = Docker_Runner()
         
         return 
 
@@ -49,7 +45,7 @@ class Controller():
             
         elif header == 'takeoff':
             alt = contents['alt']
-            print(f"{self.my_name} takeoff Call")
+            print(f"{self.my_name} takeoff call")
             asyncio.run(self.takeoff(takeoff_alt=alt))
             return
         
@@ -64,11 +60,18 @@ class Controller():
             asyncio.run(self.wait(wait_time))
             return
         
-        elif header == 'face_recognition':
-            pre_inference_model = contents['pre_inference_model']
-            receiver_info = contents['receiver_info']
-            print(f"{self.my_name} face_recognition call")
-            asyncio.run(self.face_inferer.face_recognition_video(pre_inference_model, receiver_info))
+        elif header == 'docker':
+            dockerImage = contents['dockerImage']
+            containerName = contents['containerName']
+            scriptPath = contents['scriptPath']
+            containerWorkdir = contents['containerWorkdir']
+            print(f"{self.my_name} Docker call / {dockerImage} run")
+            asyncio.run(self.dockerRunner.containerRun(
+                dockerImage,
+                containerName,
+                scriptPath,
+                containerWorkdir
+                ))
             return
 
         else :
@@ -261,10 +264,6 @@ class Controller():
         
     async def wait(self, wait_time):
         
-        drone = System()
-        await drone.connect(system_address=SYSTEM_ADDRESS)
-        await drone.action.hold()
-
         await asyncio.sleep(wait_time)
         print(f"{self.my_name} Wait End...")
         
