@@ -3,7 +3,7 @@ import pika
 import pickle
 import time
 
-from config improt RABBITMQ_CONFIG
+from config import RABBITMQ_CONFIG
 
 
 RABBITMQ_SERVER_IP = RABBITMQ_CONFIG.SERVER_IP
@@ -13,7 +13,7 @@ RABBITMQ_SERVER_PORT = RABBITMQ_CONFIG.SERVER_PORT
 class Logging_Publisher():
     
     def __init__(self, controller, drone_name):
-        self.credentials = pika.PlainCredentials(RABBITMQ_CONFIG.USER, RABBITMQ_CONFIGP.PASSWORD)
+        self.credentials = pika.PlainCredentials(RABBITMQ_CONFIG.USER, RABBITMQ_CONFIG.PASSWORD.PASSWORD)
         self.connection = pika.BlockingConnection(pika.ConnectionParameters(RABBITMQ_SERVER_IP, RABBITMQ_SERVER_PORT, RABBITMQ_CONFIG.HOST, self.credentials))
         self.channel = self.connection.channel()
         self.my_name = '[Logging Publisher]'
