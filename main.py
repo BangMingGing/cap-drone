@@ -1,9 +1,9 @@
 import argparse
 
-from threading import Thread, Lock
+from threading import Thread
 
-from Task_Manager import Task_Consumer
-from Monitoring_System import Logging_Publisher
+from task_consumer import Task_Consumer
+from log_publisher import Logging_Publisher
 from Vehicle import Controller
 
 

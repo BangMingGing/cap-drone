@@ -1,9 +1,7 @@
 import argparse
 import pika
 import pickle
-import time
 
-from Vehicle import Controller
 from config import RABBITMQ_CONFIG
 
 RABBITMQ_SERVER_IP = RABBITMQ_CONFIG.SERVER_IP
