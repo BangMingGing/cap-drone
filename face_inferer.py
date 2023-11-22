@@ -4,6 +4,7 @@ import numpy as np
 import time
 
 from face_recog_system.face_recog import Face_Recognizer
+from config import FACE_RECOG_CONFIG
 
 class Face_Inferer():
     
@@ -11,7 +12,7 @@ class Face_Inferer():
         
         self.drone_name = drone_name
         self.face_recognizer = Face_Recognizer()
-        self.url = "http://203.255.57.122:8888/face/face_recog_inference"
+        self.url = FACE_RECOG_CONFIG.REQUEST_URL
 
 
     async def face_recognition_video(self, pre_inference_model, receiver_info):

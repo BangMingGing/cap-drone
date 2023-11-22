@@ -5,9 +5,10 @@ import time
 from mavsdk import System
 
 from face_inferer import Face_Inferer
+from config import VEHICLE_CONFIG
 
 
-SYSTEM_ADDRESS = "udp://:14540"
+SYSTEM_ADDRESS = VEHICLE_CONFIG.SYSTEM_ADDRESS
 # SYSTEM_ADDRESS = "serial:///dev/ttyACM0"
 
 class Controller():
