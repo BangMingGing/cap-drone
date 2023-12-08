@@ -2,72 +2,66 @@ import aio_pika
 import asyncio
 import pickle
 
-from config import RABBITMQ_CONFIG, VEHICLE_CONFIG
+class Publisher():
+    
+    def __init__(self, connection, exchange_name, drone_name, target_queue):
+        self.connection = connection
+        self.exchange_name = exchange_name
+        self.channel = None
+        self.exchange = None
+        self.drone_name = drone_name
+        self.target_queue = target_queue
+    
+
+    async def initialize(self):
+        self.channel = await self.connection.channel()
+
+        self.exchange = aio_pika.Exchange(
+            self.channel, self.exchange_name, 
+            type=aio_pika.ExchangeType.DIRECT
+        )
+        await self.exchange.declare()
 
 
-async def task_publish(connection):
-    channel = await connection.channel()
-    exchange = aio_pika.Exchange(channel, "task", type=aio_pika.ExchangeType.DIRECT)
-    await exchange.declare()
+    async def publish(self, message):    
+        await self.exchange.publish(
+            aio_pika.Message(body=pickle.dumps(message)), 
+            routing_key=f"to{self.target_queue}"
+        )
 
-    way_points = [
-        (47.398039859999997, 8.5455725400000002, 10),   
-        (47.398036222362471, 8.5450146439425509, 10),
-        (47.397825620791885, 8.5450092830163271, 10)
-    ]
+    
+    async def send_mission_valid_message(self, current_mission):
+        message = {'drone_name': self.drone_name, 
+                   'header': 'mission_valid', 
+                   'contents': {'current_mission': current_mission}
+        }
+        await self.publish(message)
 
-    message = {
-            'header': 'upload_mission', 
-            'contents': {'way_points': way_points}
-    }
-    await exchange.publish(aio_pika.Message(body=pickle.dumps(message)), routing_key=f"to{VEHICLE_CONFIG.DRONE_NAME}")
-    # print('Published')
-    await asyncio.sleep(1)
+    async def send_mission_finished_message(self, direction):
+        message = {'drone_name': self.drone_name, 
+                   'header': 'mission_finished', 
+                   'contents': {'direction': direction}
+        }
+        await self.publish(message)
 
-    message = {
-        'header': 'takeoff',
-        'contents': {'takeoff_alt': 10}
-    }
-    await exchange.publish(aio_pika.Message(body=pickle.dumps(message)), routing_key=f"to{VEHICLE_CONFIG.DRONE_NAME}")
-    # print('Published')
-    await asyncio.sleep(1)
+    async def send_resume_valid_message(self, current_mission):
+        message = {'drone_name': self.drone_name,
+                   'header': 'resume_valid',
+                   'contents': {'current_mission': current_mission}
+                               
+        }
 
-    message = {
-        'header': 'start_mission',
-        'contents': {}
-    }
-    await exchange.publish(aio_pika.Message(body=pickle.dumps(message)), routing_key=f"to{VEHICLE_CONFIG.DRONE_NAME}")
-    # print('Published')
-    await asyncio.sleep(1)
-
-    return
+    
+    async def close(self):
+        if self.connection:
+            await self.connection.close()
 
 
-async def rabbitmq_connect():
-    connection = await aio_pika.connect_robust(
-        host=RABBITMQ_CONFIG.SERVER_IP,
-        port=RABBITMQ_CONFIG.SERVER_PORT,
-        login=RABBITMQ_CONFIG.USER,
-        password=RABBITMQ_CONFIG.PASSWORD,
-        virtualhost=RABBITMQ_CONFIG.HOST,
-    )
-    print(" -- Connected to Rabbitmq")
-    return connection
 
 async def main():
-    loop = asyncio.get_event_loop()
+    publisher = Publisher('task')
+    await publisher.initialize()
 
-    connection = await rabbitmq_connect()
-
-    consumer_task = loop.create_task(task_publish(connection))
-
-    try:
-        await asyncio.gather(consumer_task)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        await connection.close()
-        print("Connection closed")
 
 if __name__ == "__main__":
     asyncio.run(main())

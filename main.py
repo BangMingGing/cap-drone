@@ -5,6 +5,7 @@ import pickle
 
 from mavsdk import System
 
+from task_publisher import Publisher
 from controller import Controller
 from config import VEHICLE_CONFIG, RABBITMQ_CONFIG
 
@@ -12,7 +13,7 @@ async def task_consume(connection, controller):
     drone_name = VEHICLE_CONFIG.DRONE_NAME
 
     channel = await connection.channel()
-    exchange = aio_pika.Exchange(channel, "task", type=aio_pika.ExchangeType.DIRECT)
+    exchange = aio_pika.Exchange(channel, RABBITMQ_CONFIG.TASK_EXCHANGE, type=aio_pika.ExchangeType.DIRECT)
     await exchange.declare()
     queue = await channel.declare_queue(drone_name)
     await queue.bind(exchange, f"to{queue}")
@@ -36,8 +37,9 @@ async def task_consume(connection, controller):
 
                     elif header == 'upload_mission':
                         print('Upload Mission Called')
-                        way_points = contents['way_points']
-                        await controller.upload_mission(way_points)
+                        mission = contents['mission']
+                        direction = contents['direction']
+                        await controller.upload_mission(mission, direction)
 
                     elif header == 'start_mission':
                         print('Start Mission Called')
@@ -61,7 +63,7 @@ async def log_publish(connection, controller):
     drone_name = VEHICLE_CONFIG.DRONE_NAME
 
     channel = await connection.channel()
-    exchange = aio_pika.Exchange(channel, "log", type=aio_pika.ExchangeType.DIRECT)
+    exchange = aio_pika.Exchange(channel, RABBITMQ_CONFIG.LOG_EXCHANGE, type=aio_pika.ExchangeType.DIRECT)
     await exchange.declare()
     
     print("Log Publisher started")
@@ -75,7 +77,7 @@ async def log_publish(connection, controller):
             'total_mission': controller.total_mission
         }
 
-        await exchange.publish(aio_pika.Message(body=pickle.dumps(message)), routing_key=f"tolog_saver")
+        await exchange.publish(aio_pika.Message(body=pickle.dumps(message)), routing_key=f"to{RABBITMQ_CONFIG.LOG_QUEUE}")
         await asyncio.sleep(1)
 
 async def set_gps(controller):
@@ -112,10 +114,13 @@ async def rabbitmq_connect():
 async def main():
     loop = asyncio.get_event_loop()
 
-    drone = await px4_connect_drone()
-    controller = Controller(drone)
-    
     connection = await rabbitmq_connect()
+
+    publisher = Publisher(connection, RABBITMQ_CONFIG.TASK_EXCHANGE, VEHICLE_CONFIG.DRONE_NAME, RABBITMQ_CONFIG.TASK_QUEUE)
+    await publisher.initialize()
+
+    drone = await px4_connect_drone()
+    controller = Controller(drone, publisher)
 
     consumer_task = loop.create_task(task_consume(connection, controller))
     publisher_task = loop.create_task(log_publish(connection, controller))

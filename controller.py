@@ -1,25 +1,30 @@
-
 from mavsdk.mission import MissionItem, MissionPlan
 
 from config import MISSION_STATUS
 
 class Controller():
-    def __init__(self, drone):
+    def __init__(self, drone, publisher):
         self.drone = drone
+        
+        self.publisher = publisher
+
         self.GPS = {}
         self.mission_status = MISSION_STATUS.WAITIING
+        self.direction = None
 
         self.current_mission = 0
         self.total_mission = 0
 
 
-    async def upload_mission(self, way_points):
+    async def upload_mission(self, mission, direction):
         if self.mission_status == MISSION_STATUS.WAITIING:
             await self.drone.mission.clear_mission()
+            self.direction = direction
+
             mission_items = []
-            for (lat, lon, alt) in way_points:
+            for (lon, lat, alt) in mission:
                 mission_items.append(
-                    MissionItem(lat, lon, alt, 5, True, float('nan'), float('nan'), MissionItem.CameraAction.NONE, float('nan'), float('nan'), float('nan'), float('nan'), float('nan')),
+                    MissionItem(lat, lon, alt, 15, True, float('nan'), float('nan'), MissionItem.CameraAction.NONE, float('nan'), float('nan'), float('nan'), float('nan'), float('nan')),
                 )
             mission_plan = MissionPlan(mission_items)
             await self.drone.mission.set_return_to_launch_after_mission(False)
@@ -65,6 +70,7 @@ class Controller():
         if self.mission_status == MISSION_STATUS.PERFORMING:
             print("-- Pause mission")
             await self.drone.mission.pause_mission()
+            await self.publisher.send_resume_valid_meessage(self.current_mission)
             return
         
         else:
@@ -89,6 +95,7 @@ class Controller():
         if self.mission_status == MISSION_STATUS.FINISHED:
             print("-- Landing")
             await self.drone.action.land()
+            self.mission_status = MISSION_STATUS.WAITIING
             return
         
         else:
@@ -114,4 +121,8 @@ class Controller():
             self.total_mission = mission_progress.total
 
             if self.current_mission == self.total_mission:
-                self.mission_status == MISSION_STATUS.FINISHED
+                self.mission_status = MISSION_STATUS.FINISHED
+                await self.publisher.send_mission_finished_message(self.direction)
+
+            else:
+                await self.publisher.send_mission_valid_message(mission_progress.current)
