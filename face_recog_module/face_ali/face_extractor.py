@@ -12,7 +12,7 @@ class Face_Extractor():
     
     def __init__(self):
         self.detector = dlib.get_frontal_face_detector() 
-        self.predictor = dlib.shape_predictor("./face_ali/shape_predictor_5_face_landmarks.dat")
+        self.predictor = dlib.shape_predictor("face_recog_module/face_ali/shape_predictor_5_face_landmarks.dat")
 
 
     def mksquare(self, img: np.ndarray,

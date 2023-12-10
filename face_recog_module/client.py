@@ -43,13 +43,13 @@ class Client_Inferer():
         return ret_val
 
 
-    def inference_img(self, img_route, target_route):
-        img = cv.imread(img_route)
+    async def inference_img(self, img):
         img = cv.resize(img, dsize = (360, 360))
         face_img, is_face, rectang = self.faceDetectAndCrop(img)
                 
         if is_face:
-            tensor = self.model.inference_image(face_img)
+            tensor = await self.model.inference_image(face_img)
+            return tensor
 
         return tensor
 

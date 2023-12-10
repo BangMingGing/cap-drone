@@ -7,6 +7,7 @@ from mavsdk import System
 
 from task_publisher import Publisher
 from controller import Controller
+from face_recog_module.client import Client_Inferer
 from config import VEHICLE_CONFIG, RABBITMQ_CONFIG
 
 async def task_consume(connection, controller):

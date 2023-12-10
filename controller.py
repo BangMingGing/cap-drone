@@ -142,7 +142,7 @@ class Controller():
     async def face_recog_start(self):
         cap = cv.VideoCapture(0)
 
-        end_time = time.time + 6
+        end_time = time.time() + 6
 
         while True:
             if time.time() > end_time:
@@ -155,7 +155,7 @@ class Controller():
             ret, img = cap.read()
 
             if ret:
-                tensor = self.client_inferer.inference_img(img)
+                tensor = await self.client_inferer.inference_img(img)
 
                 if tensor:
                     self.publisher.send_tensor_data_message(tensor)
