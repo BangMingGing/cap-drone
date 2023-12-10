@@ -155,9 +155,11 @@ class Controller():
             ret, img = cap.read()
 
             if ret:
-                tensor = await self.client_inferer.inference_img(img)
 
-                if tensor:
-                    self.publisher.send_tensor_data_message(tensor)
+                tensor = self.client_inferer.inference_img(img)
+
+                if tensor != None:
+                    print('published')
+                    await self.publisher.send_tensor_data_message(tensor)
         
-        self.publisher.send_face_recog_end_message(self.receiver)
+        await self.publisher.send_face_recog_end_message(self.receiver)
