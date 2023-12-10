@@ -1,3 +1,4 @@
+import asyncio
 import numpy as np
 import onnxruntime
 
@@ -17,8 +18,9 @@ class onnx_client_model:
         return x
 
     # 추론 load_block_name 함수가 선행되고 진행해야함
-    def inference_tensor(self, out):
-        return self.model.run(None, {'input': out[0]})[0]
+    async def inference_tensor(self, out):
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, lambda: self.model.run(None, {'input': out[0]})[0])
 
-    def inference_image(self, face_img):
-        return self.inference_tensor([self.preprocess(face_img)])
+    async def inference_image(self, face_img):
+        return await self.inference_tensor([self.preprocess(face_img)])

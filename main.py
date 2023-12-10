@@ -36,30 +36,30 @@ async def task_consume(connection, controller):
                     if header == 'takeoff':
                         print('Takeoff Called')
                         takeoff_alt = contents['takeoff_alt']
-                        await controller.takeoff(takeoff_alt)
+                        #await controller.takeoff(takeoff_alt)
 
                     elif header == 'upload_mission':
                         print('Upload Mission Called')
                         mission = contents['mission']
                         direction = contents['direction']
-                        await controller.upload_mission(mission, direction)
+                        #await controller.upload_mission(mission, direction)
 
                     elif header == 'start_mission':
                         print('Start Mission Called')
-                        await controller.start_mission()
+                        #await controller.start_mission()
 
                     elif header == 'pause_mission':
                         print('Pause Mission Called')
-                        await controller.pause_mission()
+                        #await controller.pause_mission()
 
                     elif header == 'land':
                         print('Land Called')
-                        await controller.land()
+                        #await controller.land()
 
                     elif header == 'upload_receiver':
                         print('Upload Receiver Called')
                         receiver = contents['receiver']
-                        await controller.set_receiverr(receiver)
+                        await controller.set_receiver(receiver)
 
                     elif header == 'face_recog_start':
                         print('Face Recog StartCalled')
