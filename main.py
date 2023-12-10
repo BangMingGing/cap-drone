@@ -18,6 +18,8 @@ async def task_consume(connection, controller):
     queue = await channel.declare_queue(drone_name)
     await queue.bind(exchange, f"to{queue}")
 
+    client_inferer = Client_Inferer()
+
     semaphore = asyncio.Semaphore(value=1)
 
     async def consume_with_semaphore():
@@ -52,6 +54,17 @@ async def task_consume(connection, controller):
                     elif header == 'land':
                         print('Land Called')
                         await controller.land()
+
+                    elif header == 'upload_receiver':
+                        print('Upload Receiver Called')
+                        receiver = contents['receiver']
+                        await controller.set_receiverr(receiver)
+
+                    elif header == 'face_recog_start':
+                        print('Face Recog StartCalled')
+                        await controller.face_recog_start()
+                        
+
 
     print("Task Consumer started")
 

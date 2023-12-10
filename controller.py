@@ -1,4 +1,9 @@
+import time
+import cv2 as cv
+
 from mavsdk.mission import MissionItem, MissionPlan
+
+from face_recog_module.client import Client_Inferer
 
 from config import MISSION_STATUS
 
@@ -12,8 +17,15 @@ class Controller():
         self.mission_status = MISSION_STATUS.WAITIING
         self.direction = None
 
+        self.client_inferer = Client_Inferer()
+        self.receiver = None
+
         self.current_mission = 0
         self.total_mission = 0
+
+
+    async def set_receiver(self, receiver):
+        self.receiver = receiver
 
 
     async def upload_mission(self, mission, direction):
@@ -126,3 +138,26 @@ class Controller():
 
             else:
                 await self.publisher.send_mission_valid_message(mission_progress.current)
+
+    async def face_recog_start(self):
+        cap = cv.VideoCapture(0)
+
+        end_time = time.time + 6
+
+        while True:
+            if time.time() > end_time:
+                break
+
+            if not cap.isOpened():
+                print("Failed to open the camera")
+                break
+
+            ret, img = cap.read()
+
+            if ret:
+                tensor = self.client_inferer.inference_img(img)
+
+                if tensor:
+                    self.publisher.send_tensor_data_message(tensor)
+        
+        self.publisher.send_face_recog_end_message(self.receiver)

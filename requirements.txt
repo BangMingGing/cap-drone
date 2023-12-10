@@ -1,3 +1,5 @@
 mavsdk
 asyncio
 aio_pika
+opencv-python
+onnxruntime==1.11.0
