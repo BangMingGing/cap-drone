@@ -5,7 +5,7 @@ from mavsdk.mission import MissionItem, MissionPlan
 
 # from face_recog_module.client import Client_Inferer
 
-from config import MISSION_STATUS
+from config import MISSION_STATUS, ADMIN_STATUS
 
 class Controller():
     def __init__(self, drone, publisher):
@@ -15,6 +15,7 @@ class Controller():
 
         self.GPS = {}
         self.mission_status = MISSION_STATUS.WAITIING
+        self.admin_status = ADMIN_STATUS.NORMAL
         self.direction = None
 
         # self.client_inferer = Client_Inferer()
@@ -60,31 +61,32 @@ class Controller():
     
 
     async def start_mission(self):
-        if self.mission_status == MISSION_STATUS.UPLOADED:
-            print("-- Start mission")
-            await self.drone.mission.start_mission()
-            self.mission_status = MISSION_STATUS.PERFORMING
-            return
-        
-        elif self.mission_status == MISSION_STATUS.PAUSED:
-            print("-- Resume mission")
-            await self.drone.mission.start_mission()
-            self.mission_status = MISSION_STATUS.PERFORMING
-            return
+        if self.admin_status == ADMIN_STATUS.NORMAL:
+            if self.mission_status == MISSION_STATUS.UPLOADED:
+                print("-- Start mission")
+                await self.drone.mission.start_mission()
+                self.mission_status = MISSION_STATUS.PERFORMING
+                return
+            
+            elif self.mission_status == MISSION_STATUS.PAUSED:
+                print("-- Resume mission")
+                await self.drone.mission.start_mission()
+                self.mission_status = MISSION_STATUS.PERFORMING
+                return
 
-        elif self.mission_status == MISSION_STATUS.PERFORMING:
-            print("Already performing mission")
-            return
-        
-        elif self.mission_status == MISSION_STATUS.FINISHED:
-            print("Mission Finished But Return Mission Start")
-            await self.drone.mission.start_mission()
-            self.mission_status = MISSION_STATUS.PERFORMING
-            return
-        
-        elif self.mission_status == MISSION_STATUS.WAITIING:
-            print("Waiting for mission")
-            return
+            elif self.mission_status == MISSION_STATUS.PERFORMING:
+                print("Already performing mission")
+                return
+            
+            elif self.mission_status == MISSION_STATUS.FINISHED:
+                print("Mission Finished But Return Mission Start")
+                await self.drone.mission.start_mission()
+                self.mission_status = MISSION_STATUS.PERFORMING
+                return
+            
+            elif self.mission_status == MISSION_STATUS.WAITIING:
+                print("Waiting for mission")
+                return
     
 
     async def pause_mission(self):
@@ -100,16 +102,17 @@ class Controller():
 
 
     async def takeoff(self, takeoff_alt):
-        if self.mission_status == MISSION_STATUS.UPLOADED:
-            print(f"-- Takeoff {takeoff_alt}m")
-            await self.drone.action.arm()
-            await self.drone.action.set_takeoff_altitude(takeoff_alt)
-            await self.drone.action.takeoff()
-            return
-        
-        else:
-            print("Mission is not uploaded")
-            return
+        if self.admin_status == ADMIN_STATUS.NORMAL:
+            if self.mission_status == MISSION_STATUS.UPLOADED:
+                print(f"-- Takeoff {takeoff_alt}m")
+                await self.drone.action.arm()
+                await self.drone.action.set_takeoff_altitude(takeoff_alt)
+                await self.drone.action.takeoff()
+                return
+            
+            else:
+                print("Mission is not uploaded")
+                return
 
 
     async def land(self):
@@ -149,6 +152,22 @@ class Controller():
                 await self.publisher.send_mission_valid_message(mission_progress.current)
 
 
+    async def admin_pause(self):
+        print("-- Admin Pause")
+        await self.drone.mission.pause_mission()
+        self.admin_status = ADMIN_STATUS.ABNORMAL
+
+    async def admin_resume(self):
+        print("-- Admin Resume")
+        await self.drone.mission.start_mission()
+        self.admin_status = ADMIN_STATUS.NORMAL
+
+    async def admin_land(self):
+        print("-- Admin Land")
+        await self.drone.action.land()
+        self.admin_status = ADMIN_STATUS.ABNORMAL
+    
+    
     async def temp_face_recog_start(self):
         await self.drone.action.hold()
 
@@ -160,7 +179,7 @@ class Controller():
         await self.publisher.send_face_recog_end_message(self.receiver)
         print('face_recog_end_message published')
 
-        
+
     # async def face_recog_start(self):
     #     cap = cv.VideoCapture(0)
 

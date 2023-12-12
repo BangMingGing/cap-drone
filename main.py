@@ -30,7 +30,19 @@ async def task_consume(connection, controller):
                     header = message_data['header']
                     contents = message_data['contents']
 
-                    if header == 'takeoff':
+                    if header == 'admin_pause':
+                        print("Admin Pause Called")
+                        await controller.admin_pause()
+
+                    elif header == 'admin_resume':
+                        print("Admin Resume Called")
+                        await controller.admin_resume()
+
+                    elif header == 'admin_land':
+                        print("Admin Land Called")
+                        await controller.admin_land()
+
+                    elif header == 'takeoff':
                         print('Takeoff Called')
                         takeoff_alt = contents['takeoff_alt']
                         await controller.takeoff(takeoff_alt)
