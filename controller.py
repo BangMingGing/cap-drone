@@ -1,9 +1,9 @@
 import time
-import cv2 as cv
+# import cv2 as cv
 
 from mavsdk.mission import MissionItem, MissionPlan
 
-from face_recog_module.client import Client_Inferer
+# from face_recog_module.client import Client_Inferer
 
 from config import MISSION_STATUS
 
@@ -17,7 +17,7 @@ class Controller():
         self.mission_status = MISSION_STATUS.WAITIING
         self.direction = None
 
-        self.client_inferer = Client_Inferer()
+        # self.client_inferer = Client_Inferer()
         self.receiver = None
 
         self.current_mission = 0
@@ -29,7 +29,7 @@ class Controller():
 
 
     async def upload_mission(self, mission, direction):
-        if self.mission_status == MISSION_STATUS.WAITIING:
+        if self.mission_status == MISSION_STATUS.WAITIING or self.mission_status == MISSION_STATUS.FINISHED:
             await self.drone.mission.clear_mission()
             self.direction = direction
 
@@ -40,6 +40,13 @@ class Controller():
                 )
             mission_plan = MissionPlan(mission_items)
             await self.drone.mission.set_return_to_launch_after_mission(False)
+
+            async for current_state in self.drone.telemetry.health():
+                if current_state.is_global_position_ok:
+                    print("Vehicle is ready for a new mission.")
+                    break
+                else:
+                    print("Vehicle is not in a state to upload a new mission.")
 
             print("-- Upload mission")
             await self.drone.mission.upload_mission(mission_plan)
@@ -70,7 +77,9 @@ class Controller():
             return
         
         elif self.mission_status == MISSION_STATUS.FINISHED:
-            print("Mission Finished")
+            print("Mission Finished But Return Mission Start")
+            await self.drone.mission.start_mission()
+            self.mission_status = MISSION_STATUS.PERFORMING
             return
         
         elif self.mission_status == MISSION_STATUS.WAITIING:
@@ -139,27 +148,40 @@ class Controller():
             else:
                 await self.publisher.send_mission_valid_message(mission_progress.current)
 
-    async def face_recog_start(self):
-        cap = cv.VideoCapture(0)
+
+    async def temp_face_recog_start(self):
+        await self.drone.action.hold()
 
         end_time = time.time() + 6
 
         while True:
             if time.time() > end_time:
                 break
-
-            if not cap.isOpened():
-                print("Failed to open the camera")
-                break
-
-            ret, img = cap.read()
-
-            if ret:
-                is_face, tensor = await self.client_inferer.inference_img(img)
-                
-                if is_face:
-                    print('tensor published')
-                    await self.publisher.send_tensor_data_message(tensor)
-        
         await self.publisher.send_face_recog_end_message(self.receiver)
         print('face_recog_end_message published')
+
+        
+    # async def face_recog_start(self):
+    #     cap = cv.VideoCapture(0)
+
+    #     end_time = time.time() + 6
+
+    #     while True:
+    #         if time.time() > end_time:
+    #             break
+
+    #         if not cap.isOpened():
+    #             print("Failed to open the camera")
+    #             break
+
+    #         ret, img = cap.read()
+
+    #         if ret:
+    #             is_face, tensor = await self.client_inferer.inference_img(img)
+                
+    #             if is_face:
+    #                 print('tensor published')
+    #                 await self.publisher.send_tensor_data_message(tensor)
+        
+    #     await self.publisher.send_face_recog_end_message(self.receiver)
+    #     print('face_recog_end_message published')
