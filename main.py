@@ -7,7 +7,6 @@ from mavsdk import System
 
 from task_publisher import Publisher
 from controller import Controller
-from face_recog_module.client import Client_Inferer
 from config import VEHICLE_CONFIG, RABBITMQ_CONFIG
 
 async def task_consume(connection, controller):
@@ -18,8 +17,6 @@ async def task_consume(connection, controller):
     await exchange.declare()
     queue = await channel.declare_queue(drone_name)
     await queue.bind(exchange, f"to{queue}")
-
-    client_inferer = Client_Inferer()
 
     semaphore = asyncio.Semaphore(value=1)
 
@@ -36,25 +33,25 @@ async def task_consume(connection, controller):
                     if header == 'takeoff':
                         print('Takeoff Called')
                         takeoff_alt = contents['takeoff_alt']
-                        #await controller.takeoff(takeoff_alt)
+                        await controller.takeoff(takeoff_alt)
 
                     elif header == 'upload_mission':
                         print('Upload Mission Called')
                         mission = contents['mission']
                         direction = contents['direction']
-                        #await controller.upload_mission(mission, direction)
+                        await controller.upload_mission(mission, direction)
 
                     elif header == 'start_mission':
                         print('Start Mission Called')
-                        #await controller.start_mission()
+                        await controller.start_mission()
 
                     elif header == 'pause_mission':
                         print('Pause Mission Called')
-                        #await controller.pause_mission()
+                        await controller.pause_mission()
 
                     elif header == 'land':
                         print('Land Called')
-                        #await controller.land()
+                        await controller.land()
 
                     elif header == 'upload_receiver':
                         print('Upload Receiver Called')
@@ -63,11 +60,15 @@ async def task_consume(connection, controller):
 
                     elif header == 'face_recog_start':
                         print('Face Recog StartCalled')
-                        await controller.face_recog_start()
+                        await controller.temp_face_recog_start()
+                        # await controller.face_recog_start()
+                        
+
+                    print("message finished")
                         
 
 
-    print("Task Consumer started")
+    print("Task Consumer started", VEHICLE_CONFIG.SYSTEM_ADDRESS)
 
     while True:
         await consume_with_semaphore()
@@ -151,6 +152,11 @@ async def main():
     except KeyboardInterrupt:
         pass
     finally:
+        channel = await connection.channel()
+        queue = await channel.declare_queue(VEHICLE_CONFIG.DRONE_NAME)
+        await queue.unbind(RABBITMQ_CONFIG.TASK_EXCHANGE, f"to{VEHICLE_CONFIG.DRONE_NAME}")
+        await queue.delete()
+        print("Queue Deleted")
         await connection.close()
         print("Connection closed")
 
