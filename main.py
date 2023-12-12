@@ -72,8 +72,8 @@ async def task_consume(connection, controller):
 
                     elif header == 'face_recog_start':
                         print('Face Recog StartCalled')
-                        await controller.temp_face_recog_start()
-                        # await controller.face_recog_start()
+                        # await controller.temp_face_recog_start()
+                        await controller.face_recog_start()
                         
 
                     print("message finished")

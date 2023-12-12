@@ -1,11 +1,11 @@
 import time
-# import cv2 as cv
+import cv2 as cv
 
 from mavsdk.mission import MissionItem, MissionPlan
 
-# from face_recog_module.client import Client_Inferer
+from face_recog_module.client import Client_Inferer
 
-from config import MISSION_STATUS, ADMIN_STATUS
+from config import MISSION_STATUS, ADMIN_STATUS, VEHICLE_CONFIG
 
 class Controller():
     def __init__(self, drone, publisher):
@@ -18,7 +18,7 @@ class Controller():
         self.admin_status = ADMIN_STATUS.NORMAL
         self.direction = None
 
-        # self.client_inferer = Client_Inferer()
+        self.client_inferer = Client_Inferer()
         self.receiver = None
 
         self.current_mission = 0
@@ -37,7 +37,7 @@ class Controller():
             mission_items = []
             for (lon, lat, alt) in mission:
                 mission_items.append(
-                    MissionItem(lat, lon, alt, 15, True, float('nan'), float('nan'), MissionItem.CameraAction.NONE, float('nan'), float('nan'), float('nan'), float('nan'), float('nan')),
+                    MissionItem(lat, lon, alt+VEHICLE_CONFIG.ALT_UP, VEHICLE_CONFIG.SPEED, True, float('nan'), float('nan'), MissionItem.CameraAction.NONE, float('nan'), float('nan'), float('nan'), float('nan'), float('nan')),
                 )
             mission_plan = MissionPlan(mission_items)
             await self.drone.mission.set_return_to_launch_after_mission(False)
@@ -180,27 +180,27 @@ class Controller():
         print('face_recog_end_message published')
 
 
-    # async def face_recog_start(self):
-    #     cap = cv.VideoCapture(0)
+    async def face_recog_start(self):
+        cap = cv.VideoCapture(0)
 
-    #     end_time = time.time() + 6
+        end_time = time.time() + 6
 
-    #     while True:
-    #         if time.time() > end_time:
-    #             break
+        while True:
+            if time.time() > end_time:
+                break
 
-    #         if not cap.isOpened():
-    #             print("Failed to open the camera")
-    #             break
+            if not cap.isOpened():
+                print("Failed to open the camera")
+                break
 
-    #         ret, img = cap.read()
+            ret, img = cap.read()
 
-    #         if ret:
-    #             is_face, tensor = await self.client_inferer.inference_img(img)
+            if ret:
+                is_face, tensor = await self.client_inferer.inference_img(img)
                 
-    #             if is_face:
-    #                 print('tensor published')
-    #                 await self.publisher.send_tensor_data_message(tensor)
+                if is_face:
+                    print('tensor published')
+                    await self.publisher.send_tensor_data_message(tensor)
         
-    #     await self.publisher.send_face_recog_end_message(self.receiver)
-    #     print('face_recog_end_message published')
+        await self.publisher.send_face_recog_end_message(self.receiver)
+        print('face_recog_end_message published')
