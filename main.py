@@ -164,11 +164,6 @@ async def main():
     except KeyboardInterrupt:
         pass
     finally:
-        channel = await connection.channel()
-        queue = await channel.declare_queue(VEHICLE_CONFIG.DRONE_NAME)
-        await queue.unbind(RABBITMQ_CONFIG.TASK_EXCHANGE, f"to{VEHICLE_CONFIG.DRONE_NAME}")
-        await queue.delete()
-        print("Queue Deleted")
         await connection.close()
         print("Connection closed")
 

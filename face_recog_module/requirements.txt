@@ -1,4 +1,0 @@
-opencv-python
-pytorch_ssim
-dlib
-imutils
