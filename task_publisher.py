@@ -50,21 +50,6 @@ class Publisher():
                    'contents': {'current_mission': current_mission}
         }
         await self.publish(message)
-
-    async def send_tensor_data_message(self, tensor):
-        message = {'drone_name': self.drone_name,
-                   'header': 'face_recog',
-                   'contents': {'tensor': tensor}
-        }
-        await self.publish(message)
-
-    async def send_face_recog_end_message(self, receiver):
-        message = {'drone_name': self.drone_name,
-                   'header': 'face_recog_finish',
-                   'contents': {'receiver': receiver}
-        }
-        await self.publish(message)
-
     
     async def close(self):
         if self.connection:
